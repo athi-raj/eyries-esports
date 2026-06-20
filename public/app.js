@@ -1,11 +1,14 @@
 /* =========================================================================
    EYRIES ESPORTS — FRONTEND APP LOGIC
    -------------------------------------------------------------------------
-   Talks to the backend API (server/routes/auth.js + content.js):
-     POST /api/auth/login    -> { token, user }
-     POST /api/auth/signup   -> { token, user }
-     GET  /api/content       -> full content document (any logged-in user)
-     PUT  /api/content       -> save edits (admin only, enforced server-side)
+   Talks to the backend API (server/routes/auth.js + content.js + users.js):
+     POST /api/auth/login         -> { token, user }
+     POST /api/auth/signup        -> { token, user }
+     GET  /api/content            -> full content document (any logged-in user)
+     PUT  /api/content            -> save edits (admin only, enforced server-side)
+     GET  /api/users              -> list all accounts (admin only)
+     POST /api/users              -> create a new account directly (admin only)
+     PUT  /api/users/:name/role   -> promote/demote a user (admin only)
 
    Token is stored in localStorage so a refresh keeps you logged in.
    ========================================================================= */
@@ -139,9 +142,19 @@ async function enterApp() {
   roleBadge.classList.toggle("admin", currentUser.role === "admin");
   document.body.classList.toggle("admin-mode", currentUser.role === "admin");
 
+  const manageAdminsNavBtn = document.getElementById("manageAdminsNavBtn");
+  const manageAdminsPanel = document.getElementById("manageAdmins");
+  const isAdmin = currentUser.role === "admin";
+  manageAdminsNavBtn.classList.toggle("hidden", !isAdmin);
+  manageAdminsPanel.classList.toggle("hidden", !isAdmin);
+
   document.getElementById("yearNow").textContent = new Date().getFullYear();
 
   renderAll();
+
+  if (isAdmin) {
+    loadUserList();
+  }
 }
 
 // Auto-login on page load if a token is already saved
@@ -399,3 +412,99 @@ function showToast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2400);
 }
+
+/* ---------------------------------------------------------------------
+   MANAGE ADMINS (admin only)
+   --------------------------------------------------------------------- */
+async function loadUserList() {
+  try {
+    const users = await apiRequest("/users");
+    renderUserList(users);
+  } catch (err) {
+    showToast(err.message || "Could not load accounts.");
+  }
+}
+
+function renderUserList(users) {
+  const listEl = document.getElementById("userList");
+
+  if (!users.length) {
+    listEl.innerHTML = `<div class="empty-note">No accounts yet.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = users
+    .map((u) => {
+      const isSelf = u.username === currentUser.username;
+      const isAdminUser = u.role === "admin";
+      const joined = u.createdAt
+        ? new Date(u.createdAt).toLocaleDateString()
+        : "";
+
+      const actionButton = isAdminUser
+        ? `<button class="role-toggle-btn remove-admin" data-username="${u.username}" data-newrole="user" ${isSelf ? "disabled title=\"You can't remove your own admin access\"" : ""}>Remove admin</button>`
+        : `<button class="role-toggle-btn make-admin" data-username="${u.username}" data-newrole="admin">Make admin</button>`;
+
+      return `
+        <div class="user-row">
+          <div class="user-row-info">
+            <div class="user-row-name">${u.username}${isSelf ? " (you)" : ""}</div>
+            <div class="user-row-meta">Joined ${joined}</div>
+          </div>
+          <div class="user-row-actions">
+            <span class="user-role-pill ${isAdminUser ? "admin" : ""}">${isAdminUser ? "Admin" : "Fan"}</span>
+            ${actionButton}
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  listEl.querySelectorAll(".role-toggle-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const username = btn.dataset.username;
+      const newRole = btn.dataset.newrole;
+      btn.disabled = true;
+
+      try {
+        await apiRequest(`/users/${encodeURIComponent(username)}/role`, {
+          method: "PUT",
+          body: JSON.stringify({ role: newRole })
+        });
+        showToast(newRole === "admin" ? `${username} is now an admin.` : `${username}'s admin access removed.`);
+        loadUserList();
+      } catch (err) {
+        showToast(err.message || "Could not update that account.");
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+const adminCreateForm = document.getElementById("adminCreateForm");
+const adminCreateError = document.getElementById("adminCreateError");
+
+adminCreateForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  adminCreateError.textContent = "";
+
+  const username = document.getElementById("newAccUsername").value.trim();
+  const password = document.getElementById("newAccPassword").value;
+  const isAdmin = document.getElementById("newAccIsAdmin").checked;
+  const submitBtn = adminCreateForm.querySelector(".auth-btn");
+  submitBtn.disabled = true;
+
+  try {
+    await apiRequest("/users", {
+      method: "POST",
+      body: JSON.stringify({ username, password, role: isAdmin ? "admin" : "user" })
+    });
+    showToast(`Account "${username}" created.`);
+    adminCreateForm.reset();
+    loadUserList();
+  } catch (err) {
+    adminCreateError.textContent = err.message || "Could not create account.";
+  } finally {
+    submitBtn.disabled = false;
+  }
+});

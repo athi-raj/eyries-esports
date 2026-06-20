@@ -6,6 +6,7 @@ const path = require("path");
 
 const authRoutes = require("./routes/auth");
 const contentRoutes = require("./routes/content");
+const usersRoutes = require("./routes/users");
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/content", contentRoutes);
+app.use("/api/users", usersRoutes);
 
 // Serve the frontend (everything in /public) as static files
 app.use(express.static(path.join(__dirname, "..", "public")));

@@ -76,6 +76,7 @@
     <button class="navlink" data-target="about">About</button>
     <button class="navlink" data-target="achievements">Achievements</button>
     <button class="navlink" data-target="contact">Contact</button>
+    <button class="navlink hidden" id="manageAdminsNavBtn" data-target="manageAdmins">Manage Admins</button>
     <div class="navdrawer-divider"></div>
     <button class="navlink navlink-logout" id="logoutBtn">Log out</button>
   </nav>
@@ -137,6 +138,27 @@
       <div class="social-row" id="socialRow"></div>
 
       <div class="footer-note">© <span id="yearNow"></span> Eyries Esports. All rights reserved.</div>
+    </section>
+
+    <!-- ============ MANAGE ADMINS (admin only) ============ -->
+    <section class="panel hidden" id="manageAdmins">
+      <div class="panel-eyebrow">04 — Admin</div>
+      <h2 class="panel-title">Manage admins</h2>
+
+      <div class="about-block-label">Create a new account</div>
+      <form class="admin-create-form" id="adminCreateForm">
+        <input class="auth-input" id="newAccUsername" type="text" placeholder="Username" autocomplete="off" required>
+        <input class="auth-input" id="newAccPassword" type="password" placeholder="Password (min. 6 characters)" autocomplete="new-password" minlength="6" required>
+        <label class="admin-role-toggle">
+          <input type="checkbox" id="newAccIsAdmin">
+          <span>Make this account an admin (otherwise it's a view-only fan account)</span>
+        </label>
+        <div class="auth-error" id="adminCreateError"></div>
+        <button type="submit" class="auth-btn">Create account</button>
+      </form>
+
+      <div class="about-block-label" style="margin-top:36px;">All accounts</div>
+      <div class="user-list" id="userList"></div>
     </section>
 
   </main>

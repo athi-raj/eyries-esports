@@ -66,6 +66,34 @@ const placeholderContent = {
       photoUrl: ""
     }
   ],
+  squads: {
+    BGMI: {
+      players: [
+        { name: "[Player name]", gamingId: "[In-game ID]", role: "IGL", photoUrl: "" }
+      ],
+      announcements: [
+        { title: "[Announcement title]", body: "[Details here.]", date: "2026" }
+      ]
+    },
+    VALORANT: {
+      players: [
+        { name: "[Player name]", gamingId: "[In-game ID]", role: "Duelist", photoUrl: "" }
+      ],
+      announcements: []
+    },
+    PES: {
+      players: [
+        { name: "[Player name]", gamingId: "[In-game ID]", role: "Forward", photoUrl: "" }
+      ],
+      announcements: []
+    },
+    "FREE FIRE": {
+      players: [
+        { name: "[Player name]", gamingId: "[In-game ID]", role: "Rusher", photoUrl: "" }
+      ],
+      announcements: []
+    }
+  },
   contact: {
     email: "contact@eyriesesports.example",
     phone: "+91 00000 00000",

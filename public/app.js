@@ -17,6 +17,12 @@ const API_BASE = "/api";
 let authToken = localStorage.getItem("eyries_token") || null;
 let currentUser = JSON.parse(localStorage.getItem("eyries_user") || "null");
 let siteContent = null;
+let currentGame = "BGMI";
+
+// Safe to call whether or not anyone is logged in — never throws.
+function isAdminUser() {
+  return !!(currentUser && currentUser.role === "admin");
+}
 
 /* ---------------------------------------------------------------------
    API HELPERS
@@ -35,7 +41,7 @@ async function apiRequest(path, options = {}) {
 }
 
 /* ---------------------------------------------------------------------
-   AUTH: LOGIN / SIGNUP / LOGOUT
+   AUTH: LOGIN / SIGNUP / LOGOUT (optional — viewing never requires this)
    --------------------------------------------------------------------- */
 const authScreen = document.getElementById("authScreen");
 const appEl = document.getElementById("app");
@@ -45,6 +51,25 @@ const authSwitchBtn = document.getElementById("authSwitchBtn");
 const authSub = document.getElementById("authSub");
 const loginError = document.getElementById("loginError");
 const signupError = document.getElementById("signupError");
+const openAuthBtn = document.getElementById("openAuthBtn");
+const authCloseBtn = document.getElementById("authCloseBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+
+function openAuthModal() {
+  authScreen.classList.remove("hidden");
+  closeNav();
+}
+function closeAuthModal() {
+  authScreen.classList.add("hidden");
+  loginError.textContent = "";
+  signupError.textContent = "";
+}
+
+openAuthBtn.addEventListener("click", openAuthModal);
+authCloseBtn.addEventListener("click", closeAuthModal);
+authScreen.addEventListener("click", (e) => {
+  if (e.target === authScreen) closeAuthModal(); // click outside the card closes it
+});
 
 let showingSignup = false;
 authSwitchBtn.addEventListener("click", () => {
@@ -53,7 +78,7 @@ authSwitchBtn.addEventListener("click", () => {
   signupForm.classList.toggle("hidden", !showingSignup);
   authSub.textContent = showingSignup
     ? "Create a fan account to follow Eyries"
-    : "Sign in to enter the team hub";
+    : "Log in to your account";
   authSwitchBtn.textContent = showingSignup
     ? "Already have an account? Log in"
     : "New here? Create a fan account";
@@ -108,59 +133,68 @@ function onLoginSuccess(data) {
   currentUser = data.user;
   localStorage.setItem("eyries_token", authToken);
   localStorage.setItem("eyries_user", JSON.stringify(currentUser));
-  enterApp();
+  closeAuthModal();
+  applyAuthState();
+  loadContentAndRender();
 }
 
-document.getElementById("logoutBtn").addEventListener("click", () => {
+logoutBtn.addEventListener("click", () => {
   authToken = null;
   currentUser = null;
   localStorage.removeItem("eyries_token");
   localStorage.removeItem("eyries_user");
-  appEl.classList.add("hidden");
-  authScreen.classList.remove("hidden");
   closeNav();
+  applyAuthState();
+  loadContentAndRender();
 });
 
 /* ---------------------------------------------------------------------
-   ENTER APP: load content, render everything, show role-based UI
+   APPLY AUTH STATE: show/hide login vs logout, admin tools, role badge
    --------------------------------------------------------------------- */
-async function enterApp() {
-  try {
-    siteContent = await apiRequest("/content");
-  } catch (err) {
-    // Token likely invalid/expired — bounce back to login.
-    document.getElementById("logoutBtn").click();
-    loginError.textContent = "Your session expired. Please log in again.";
-    return;
-  }
-
-  authScreen.classList.add("hidden");
-  appEl.classList.remove("hidden");
+function applyAuthState() {
+  const isLoggedIn = !!(authToken && currentUser);
+  const isAdmin = isLoggedIn && currentUser.role === "admin";
 
   const roleBadge = document.getElementById("roleBadge");
-  roleBadge.textContent = currentUser.role === "admin" ? "Admin" : "Fan";
-  roleBadge.classList.toggle("admin", currentUser.role === "admin");
-  document.body.classList.toggle("admin-mode", currentUser.role === "admin");
+  if (isLoggedIn) {
+    roleBadge.textContent = isAdmin ? "Admin" : "Fan";
+    roleBadge.classList.toggle("admin", isAdmin);
+    roleBadge.classList.remove("hidden");
+  } else {
+    roleBadge.classList.add("hidden");
+  }
+
+  document.body.classList.toggle("admin-mode", isAdmin);
+
+  openAuthBtn.classList.toggle("hidden", isLoggedIn);
+  logoutBtn.classList.toggle("hidden", !isLoggedIn);
 
   const manageAdminsNavBtn = document.getElementById("manageAdminsNavBtn");
   const manageAdminsPanel = document.getElementById("manageAdmins");
-  const isAdmin = currentUser.role === "admin";
   manageAdminsNavBtn.classList.toggle("hidden", !isAdmin);
   manageAdminsPanel.classList.toggle("hidden", !isAdmin);
-
-  document.getElementById("yearNow").textContent = new Date().getFullYear();
-
-  renderAll();
 
   if (isAdmin) {
     loadUserList();
   }
 }
 
-// Auto-login on page load if a token is already saved
-if (authToken && currentUser) {
-  enterApp();
+/* ---------------------------------------------------------------------
+   LOAD CONTENT + RENDER: runs on every page load, no login required
+   --------------------------------------------------------------------- */
+async function loadContentAndRender() {
+  try {
+    siteContent = await apiRequest("/content");
+  } catch (err) {
+    showToast("Could not load site content. Try refreshing.");
+    return;
+  }
+  renderAll();
 }
+
+document.getElementById("yearNow").textContent = new Date().getFullYear();
+applyAuthState();
+loadContentAndRender();
 
 /* ---------------------------------------------------------------------
    HAMBURGER NAV + SCROLL-TO-SECTION
@@ -257,6 +291,63 @@ function renderTrophyCard(item, index) {
   `;
 }
 
+function renderPlayerCard(player, prefix) {
+  return `
+    <div class="player-card-sq">
+      <div class="player-photo-sq" data-edit-field="${prefix}.photoUrl" data-edit-type="photo" ${photoStyle(player.photoUrl)}>
+        ${player.photoUrl ? "" : initials(player.name)}
+      </div>
+      <div class="player-name-sq" data-edit-field="${prefix}.name" data-edit-type="text">${player.name || "[Player name]"}</div>
+      <div class="player-gamingid-sq" data-edit-field="${prefix}.gamingId" data-edit-type="text">${player.gamingId || "[Gaming ID]"}</div>
+      <div class="player-role-sq" data-edit-field="${prefix}.role" data-edit-type="text">${player.role || "[Role]"}</div>
+    </div>
+  `;
+}
+
+function renderAnnouncementCard(item, prefix) {
+  return `
+    <div class="announcement-card">
+      <div class="announcement-top">
+        <div class="announcement-title" data-edit-field="${prefix}.title" data-edit-type="text">${item.title || "[Announcement title]"}</div>
+        <div class="announcement-date" data-edit-field="${prefix}.date" data-edit-type="text">${item.date || "[Date]"}</div>
+      </div>
+      <div class="announcement-body" data-edit-field="${prefix}.body" data-edit-type="textarea">${item.body || "[Details]"}</div>
+    </div>
+  `;
+}
+
+function renderSquads() {
+  const squad = (siteContent.squads && siteContent.squads[currentGame]) || { players: [], announcements: [] };
+  const squadPrefix = `squads.${currentGame}`;
+
+  document.querySelectorAll(".game-switch-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.game === currentGame);
+  });
+
+  const players = squad.players || [];
+  document.getElementById("playerGrid").innerHTML = players.length
+    ? players.map((p, i) => renderPlayerCard(p, `${squadPrefix}.players.${i}`)).join("")
+    : `<div class="empty-note">No players added for ${currentGame} yet.</div>`;
+
+  const announcements = squad.announcements || [];
+  document.getElementById("announcementList").innerHTML = announcements.length
+    ? announcements.map((a, i) => renderAnnouncementCard(a, `${squadPrefix}.announcements.${i}`)).join("")
+    : `<div class="empty-note">No announcements for ${currentGame} yet.</div>`;
+
+  attachEditHandlers();
+
+  document.querySelectorAll('.admin-add-btn[data-add="player"], .admin-add-btn[data-add="announcement"]').forEach((btn) => {
+    btn.classList.toggle("hidden", !isAdminUser());
+  });
+}
+
+document.querySelectorAll(".game-switch-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    currentGame = btn.dataset.game;
+    renderSquads();
+  });
+});
+
 function renderAll() {
   const c = siteContent;
 
@@ -283,6 +374,9 @@ function renderAll() {
     .map((a, i) => renderTrophyCard(a, i))
     .join("");
 
+  // Squads (players + announcements for the currently selected game)
+  renderSquads();
+
   // Contact
   const contact = c.contact || {};
   const contactRows = [
@@ -305,7 +399,7 @@ function renderAll() {
   ];
   document.getElementById("socialRow").innerHTML = socials
     .map(([label, url, field]) => {
-      if (currentUser.role === "admin") {
+      if (isAdminUser()) {
         return `<a class="social-pill" href="${url || "#"}" target="_blank" rel="noopener" data-edit-field="${field}" data-edit-type="text">${label}</a>`;
       }
       return url ? `<a class="social-pill" href="${url}" target="_blank" rel="noopener">${label}</a>` : "";
@@ -316,7 +410,7 @@ function renderAll() {
 
   // Show admin-only "add" buttons
   document.querySelectorAll(".admin-add-btn").forEach((btn) => {
-    btn.classList.toggle("hidden", currentUser.role !== "admin");
+    btn.classList.toggle("hidden", !isAdminUser());
   });
 }
 
@@ -328,6 +422,53 @@ function rowHtml(label, value, field) {
     </div>
   `;
 }
+
+/* ---------------------------------------------------------------------
+   ADMIN "+ ADD" BUTTONS (team, achievements, players, announcements)
+   --------------------------------------------------------------------- */
+const blankItemFor = {
+  team: () => ({ name: "", title: "", bio: "", photoUrl: "" }),
+  achievements: () => ({ title: "", event: "", year: "", description: "", photoUrl: "" }),
+  player: () => ({ name: "", gamingId: "", role: "", photoUrl: "" }),
+  announcement: () => ({ title: "", body: "", date: "" })
+};
+
+document.querySelectorAll(".admin-add-btn").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const kind = btn.dataset.add;
+    const makeBlank = blankItemFor[kind];
+    if (!makeBlank) return;
+
+    if (kind === "team") {
+      siteContent.team = siteContent.team || [];
+      siteContent.team.push(makeBlank());
+    } else if (kind === "achievements") {
+      siteContent.achievements = siteContent.achievements || [];
+      siteContent.achievements.push(makeBlank());
+    } else if (kind === "player") {
+      siteContent.squads = siteContent.squads || {};
+      siteContent.squads[currentGame] = siteContent.squads[currentGame] || { players: [], announcements: [] };
+      siteContent.squads[currentGame].players = siteContent.squads[currentGame].players || [];
+      siteContent.squads[currentGame].players.push(makeBlank());
+    } else if (kind === "announcement") {
+      siteContent.squads = siteContent.squads || {};
+      siteContent.squads[currentGame] = siteContent.squads[currentGame] || { players: [], announcements: [] };
+      siteContent.squads[currentGame].announcements = siteContent.squads[currentGame].announcements || [];
+      siteContent.squads[currentGame].announcements.push(makeBlank());
+    }
+
+    try {
+      await apiRequest("/content", {
+        method: "PUT",
+        body: JSON.stringify(siteContent)
+      });
+      showToast("Added — click its fields to fill them in.");
+      renderAll();
+    } catch (err) {
+      showToast(err.message || "Could not save. Try again.");
+    }
+  });
+});
 
 /* ---------------------------------------------------------------------
    ADMIN INLINE EDITING
@@ -342,7 +483,7 @@ let activeEditField = null;
 let activeEditType = null;
 
 function attachEditHandlers() {
-  if (currentUser.role !== "admin") return;
+  if (!isAdminUser()) return;
 
   document.querySelectorAll("[data-edit-field]").forEach((el) => {
     el.addEventListener("click", (e) => {

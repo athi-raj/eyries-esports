@@ -13,14 +13,15 @@
 <body>
 
 <!-- ============================================================ -->
-<!-- LOGIN / SIGNUP GATE                                           -->
+<!-- LOGIN / SIGNUP MODAL (hidden by default, opened from the nav) -->
 <!-- ============================================================ -->
-<div id="authScreen" class="auth-screen">
+<div id="authScreen" class="auth-screen hidden">
   <div class="auth-bg-grid"></div>
   <div class="auth-card">
+    <button class="auth-close" id="authCloseBtn" aria-label="Close">&times;</button>
     <img src="assets/logo.png" alt="Eyries Esports" class="auth-logo">
     <div class="auth-title">EYRIES <span>ESPORTS</span></div>
-    <div class="auth-sub" id="authSub">Sign in to enter the team hub</div>
+    <div class="auth-sub" id="authSub">Log in to your account</div>
 
     <form id="loginForm" class="auth-form">
       <label class="auth-label" for="loginUsername">Username</label>
@@ -52,9 +53,9 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- MAIN APP (shown after login)                                  -->
+<!-- MAIN APP (visible immediately, no login required to view)    -->
 <!-- ============================================================ -->
-<div id="app" class="app hidden">
+<div id="app" class="app">
 
   <!-- TOP BAR -->
   <header class="topbar">
@@ -74,11 +75,13 @@
   <nav class="navdrawer" id="navDrawer">
     <button class="navlink" data-target="home">Home</button>
     <button class="navlink" data-target="about">About</button>
+    <button class="navlink" data-target="squads">Squads</button>
     <button class="navlink" data-target="achievements">Achievements</button>
     <button class="navlink" data-target="contact">Contact</button>
     <button class="navlink hidden" id="manageAdminsNavBtn" data-target="manageAdmins">Manage Admins</button>
     <div class="navdrawer-divider"></div>
-    <button class="navlink navlink-logout" id="logoutBtn">Log out</button>
+    <button class="navlink" id="openAuthBtn">Login / Sign up</button>
+    <button class="navlink navlink-logout hidden" id="logoutBtn">Log out</button>
   </nav>
   <div class="nav-overlay" id="navOverlay"></div>
 
@@ -120,9 +123,30 @@
       </div>
     </section>
 
+    <!-- ============ SQUADS ============ -->
+    <section class="panel" id="squads">
+      <div class="panel-eyebrow">02 — Squads</div>
+      <h2 class="panel-title">Pick your front</h2>
+
+      <div class="game-switcher" id="gameSwitcher">
+        <button class="game-switch-btn active" data-game="BGMI">BGMI</button>
+        <button class="game-switch-btn" data-game="VALORANT">Valorant</button>
+        <button class="game-switch-btn" data-game="PES">PES</button>
+        <button class="game-switch-btn" data-game="FREE FIRE">Free Fire</button>
+      </div>
+
+      <div class="about-block-label">Roster</div>
+      <div class="player-grid" id="playerGrid"></div>
+      <button class="admin-add-btn hidden" data-add="player">+ Add player</button>
+
+      <div class="about-block-label" style="margin-top:36px;">Announcements</div>
+      <div class="announcement-list" id="announcementList"></div>
+      <button class="admin-add-btn hidden" data-add="announcement">+ Add announcement</button>
+    </section>
+
     <!-- ============ ACHIEVEMENTS ============ -->
     <section class="panel" id="achievements">
-      <div class="panel-eyebrow">02 — Achievements</div>
+      <div class="panel-eyebrow">03 — Achievements</div>
       <h2 class="panel-title">Trophies &amp; titles</h2>
       <div class="trophy-list" id="trophyList"></div>
       <button class="admin-add-btn hidden" data-add="achievements">+ Add achievement</button>
@@ -130,7 +154,7 @@
 
     <!-- ============ CONTACT ============ -->
     <section class="panel" id="contact">
-      <div class="panel-eyebrow">03 — Contact</div>
+      <div class="panel-eyebrow">04 — Contact</div>
       <h2 class="panel-title">Reach the squad</h2>
 
       <div class="contact-grid" id="contactGrid"></div>
@@ -142,7 +166,7 @@
 
     <!-- ============ MANAGE ADMINS (admin only) ============ -->
     <section class="panel hidden" id="manageAdmins">
-      <div class="panel-eyebrow">04 — Admin</div>
+      <div class="panel-eyebrow">05 — Admin</div>
       <h2 class="panel-title">Manage admins</h2>
 
       <div class="about-block-label">Create a new account</div>

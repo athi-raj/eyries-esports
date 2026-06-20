@@ -32,6 +32,33 @@ const achievementSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const playerSchema = new mongoose.Schema(
+  {
+    name: { type: String, default: "" },
+    gamingId: { type: String, default: "" }, // in-game ID / IGN, distinct from real name
+    role: { type: String, default: "" },     // e.g. "IGL", "Sniper", "Support"
+    photoUrl: { type: String, default: "" }
+  },
+  { _id: false }
+);
+
+const announcementSchema = new mongoose.Schema(
+  {
+    title: { type: String, default: "" },
+    body: { type: String, default: "" },
+    date: { type: String, default: "" }
+  },
+  { _id: false }
+);
+
+const squadSchema = new mongoose.Schema(
+  {
+    players: { type: [playerSchema], default: [] },
+    announcements: { type: [announcementSchema], default: [] }
+  },
+  { _id: false }
+);
+
 const contentSchema = new mongoose.Schema({
   _id: { type: String, default: "site-content" },
 
@@ -45,6 +72,21 @@ const contentSchema = new mongoose.Schema({
   coFounders: { type: [personSchema], default: [] },
   team: { type: [personSchema], default: [] },
   achievements: { type: [achievementSchema], default: [] },
+
+  /*
+    SQUADS
+    ------
+    Keyed by game name. Each game has its own player roster and its own
+    announcements feed. Using a plain Mixed-style map (Schema.Types.Mixed)
+    keeps this flexible — admin can add players/announcements freely per
+    game without needing a fixed count.
+  */
+  squads: {
+    BGMI: { type: squadSchema, default: () => ({}) },
+    VALORANT: { type: squadSchema, default: () => ({}) },
+    PES: { type: squadSchema, default: () => ({}) },
+    "FREE FIRE": { type: squadSchema, default: () => ({}) }
+  },
 
   contact: {
     email: { type: String, default: "" },
